@@ -1,10 +1,15 @@
+import os
+
+from dotenv import load_dotenv
 import telebot
 from telebot import types
 from telegram import ParseMode
 
 from parser import habr_parser_main
 
-TOKEN = '5043259134:AAGSDHayOt-veEj_0MU5cQTX7ZveqjiT2-8'
+load_dotenv()
+
+TOKEN = os.getenv('TOKEN')
 
 bot = telebot.TeleBot(TOKEN)
 

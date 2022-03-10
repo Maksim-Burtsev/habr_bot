@@ -81,8 +81,8 @@ def habr_parser_main():
 
     my_thread = threading.Thread(target=make_json, args=(all_data,))
     my_thread.start()
-    # make_json(all_data)
-    return all_data
+    
+    return all_data[::-1]
 
 
 if __name__ == '__main__':
