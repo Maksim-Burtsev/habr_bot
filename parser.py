@@ -66,7 +66,7 @@ def habr_parser_main(pages_count: int) -> list:
         url = URL + str(i) + '/'
         articles = get_articles_from_page(url)
         for j in range(len(articles)):
-            data = get_post_data(articles[j])
+            data = get_post_data(articles[j])       
             if data:
                 all_data.append(data)
 

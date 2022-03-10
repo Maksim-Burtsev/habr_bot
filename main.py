@@ -3,7 +3,7 @@ import os
 import telebot
 from telebot import types
 from telegram import ParseMode
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 from parser import habr_parser_main, get_current_date
 
@@ -18,8 +18,9 @@ def send_hyperlink(bot: telebot.TeleBot, message: types.Message,
                      parse_mode=ParseMode.HTML)
 
 
-load_dotenv()
-TOKEN = os.getenv('TOKEN')
+# load_dotenv()
+# TOKEN = os.getenv('TOKEN')
+TOKEN = '5043259134:AAGSDHayOt-veEj_0MU5cQTX7ZveqjiT2-8'
 
 bot = telebot.TeleBot(TOKEN)
 
