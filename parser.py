@@ -1,6 +1,7 @@
-import re
 import datetime
 import requests
+import json
+import threading
 
 from bs4 import BeautifulSoup
 import fake_useragent
@@ -36,19 +37,33 @@ def get_post_data(article) -> tuple:
     except:
         return False
 
-    # time = datetime.datetime.strptime(
-    #     article.find('time').get('title'),
-    #     '%Y-%m-%d, %H:%M',
-    # )
+    time = datetime.datetime.strptime(
+        article.find('time').get('title'),
+        '%Y-%m-%d, %H:%M',
+    )
 
-    time = article.find('time').get('title')[-5:]
+    # simple_time = article.find('time').get('title')[-5:]
 
     url = 'https://habr.com' + \
         article.find(
             'a', {'class': 'tm-article-snippet__title-link'}).get('href')
 
-    return (title, url, time)
+    return (title, url, str(time))
 
+def make_json(data: list) -> None:
+    """Упаковывает всю информацию о статьях и json"""
+
+    my_dict = {}
+
+    for i in range(len(data)):
+        my_dict[i+1] = {
+            'title': data[i][0],
+            'link': data[i][1],
+            'published_time': data[i][2],
+        }
+
+    with open('data.json', 'w', encoding='utf-8') as f:
+        json.dump(my_dict, f, indent=3, ensure_ascii=False)
 
 def habr_parser_main():
     """Основная функция программы"""
@@ -64,6 +79,9 @@ def habr_parser_main():
             if data:
                 all_data.append(data)
 
+    my_thread = threading.Thread(target=make_json, args=(all_data,))
+    my_thread.start()
+    # make_json(all_data)
     return all_data
 
 
