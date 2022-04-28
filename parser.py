@@ -5,73 +5,77 @@ from bs4 import BeautifulSoup
 import fake_useragent
 
 
-def get_current_date() -> str:
-    """Возвращает текущую дату в MSK"""
+class Parser:
 
-    delta = datetime.timedelta(hours=3, minutes=0)
+    def __init__(self) -> None:
+        self.url = 'https://habr.com/ru/all/'
+        self.url_page = 'https://habr.com/ru/all/page'
 
-    current_datetime = datetime.datetime.now(datetime.timezone.utc) + delta
+    def _get_current_date(self) -> str:
+        """Возвращает текущую дату в Europe/Moscow"""
 
-    return str(current_datetime)[:10]  # 2022-03-10
+        delta = datetime.timedelta(hours=3, minutes=0)
 
+        current_datetime = datetime.datetime.now(datetime.timezone.utc) + delta
 
-def get_articles_from_page(url: str) -> list[BeautifulSoup]:
-    """Парсит все статьи со страницы"""
+        return str(current_datetime)[:10]  # 2022-03-10
 
-    user = fake_useragent.UserAgent().random
-    header = {
-        'user-agent': user,
-    }
+    def _get_articles_from_page(self, url: str) -> list[BeautifulSoup]:
+        """Парсит все статьи со страницы"""
 
-    response = requests.get(url, headers=header)
-    soup = BeautifulSoup(response.text, 'lxml')
+        user = fake_useragent.UserAgent().random
+        header = {
+            'user-agent': user,
+        }
 
-    div = soup.find('div', {'class': 'tm-articles-subpage'})
+        response = requests.get(url, headers=header)
+        soup = BeautifulSoup(response.text, 'lxml')
 
-    articles = div.find_all('article')
+        div = soup.find('div', {'class': 'tm-articles-subpage'})
 
-    return articles
+        articles = div.find_all('article')
 
+        return articles
 
-def get_post_data(article: BeautifulSoup) -> tuple:
-    """Достаёт из поста заголовок, ссылку и время публикации и возвращает их"""
+    def _get_post_data(self, article: BeautifulSoup) -> tuple:
+        """Достаёт из поста заголовок, ссылку и время публикации и возвращает их"""
 
-    try:
-        title = article.find(
-            'a', {'class': 'tm-article-snippet__title-link'}).text
-    except:
-        return False
+        try:
+            title = article.find(
+                'a', {'class': 'tm-article-snippet__title-link'}).text
+        except:
+            return False
 
-    post_datetime = datetime.datetime.strptime(
-        article.find('time').get('title'),
-        '%Y-%m-%d, %H:%M',
-    )
+        post_datetime = datetime.datetime.strptime(
+            article.find('time').get('title'),
+            '%Y-%m-%d, %H:%M',
+        )
 
-    date = str(post_datetime)[:10]  # 2022-03-10
+        date = str(post_datetime)[:10]  # 2022-03-10
 
-    url = 'https://habr.com' + \
-        article.find(
-            'a', {'class': 'tm-article-snippet__title-link'}).get('href')
+        url = 'https://habr.com' + \
+            article.find(
+                'a', {'class': 'tm-article-snippet__title-link'}).get('href')
 
-    return (title, url, date)
+        return (title, url, date)
 
+    def habr_parser_main(self, pages_count: int) -> list:
+        """Основная функция программы"""
 
-def habr_parser_main(pages_count: int) -> list:
-    """Основная функция программы"""
+        all_data = []
 
-    URL = 'https://habr.com/ru/all/page'
-    all_data = []
+        for i in range(1, pages_count+1):
+            url = self.url_page + str(i) + '/'
+            articles = self._get_articles_from_page(url)
+            for j in range(len(articles)):
+                data = self._get_post_data(articles[j])
+                if data:
+                    all_data.append(data)
 
-    for i in range(1, pages_count+1):
-        url = URL + str(i) + '/'
-        articles = get_articles_from_page(url)
-        for j in range(len(articles)):
-            data = get_post_data(articles[j])
-            if data:
-                all_data.append(data)
-
-    return all_data[::-1]
+        return all_data[::-1]
 
 
 if __name__ == '__main__':
-    habr_parser_main(1)
+    parser = Parser()
+
+    print(parser.habr_parser_main(1))

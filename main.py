@@ -5,10 +5,10 @@ from telebot import types
 from telegram import ParseMode
 from dotenv import load_dotenv
 
-from parser import habr_parser_main, get_current_date
+from parser import Parser
 
 
-def send_hyperlink(bot: telebot.TeleBot, message: types.Message, 
+def send_hyperlink(bot: telebot.TeleBot, message: types.Message,
                    text: str, link: str) -> None:
     """Отправляет гиперссылку"""
 
@@ -22,6 +22,7 @@ load_dotenv()
 TOKEN = os.getenv('TOKEN')
 
 bot = telebot.TeleBot(TOKEN)
+parser = Parser()
 
 
 @bot.message_handler(commands=['start'])
@@ -36,7 +37,7 @@ def start(message):
 
 @bot.message_handler(commands=['10'])
 def last_ten_posts(message):
-    all_data = habr_parser_main(1)
+    all_data = parser.habr_parser_main(1)
     for data in all_data[-10:]:
         send_hyperlink(bot, message, data[0], data[1])
 
@@ -44,13 +45,13 @@ def last_ten_posts(message):
 @bot.message_handler(content_types='text')
 def get_posts(message):
     if message.text == 'все публикации с главной страницы':
-        all_data = habr_parser_main(1)
+        all_data = parser.habr_parser_main(1)
         for data in all_data:
             send_hyperlink(bot, message, data[0], data[1])
 
     if message.text == "все посты за сегодня":
-        all_data = habr_parser_main(3)
-        current_date = get_current_date()
+        all_data = parser.habr_parser_main(3)
+        current_date = parser._get_current_date()
         for data in all_data:
             if data[2] == current_date:
                 send_hyperlink(bot, message, data[0], data[1])
