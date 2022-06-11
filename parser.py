@@ -1,7 +1,7 @@
 import datetime
-import requests
 from typing import NamedTuple
 
+import requests
 import fake_useragent
 from bs4 import BeautifulSoup
 
@@ -28,20 +28,22 @@ class Parser:
 
         return str(current_datetime)[:10]  # 2022-03-10
 
-    def _get_html_page(self, url: str) -> str:
+    def _get_html_page(self, page_num: int) -> str:
         """
         Парсит html страницы
         """
+        url = f'{self.url_page}{str(page_num)}/'
         header = {'user-agent': self.user}
+
         response = requests.get(url, headers=header)
         if response.status_code == 200:
             return response.text
         raise Exception('Parse error')
 
-    def _get_articles_from_page(self, url: str) -> list[BeautifulSoup]:
+    def _get_articles_from_page(self, page_num: int=1) -> list[BeautifulSoup]:
         """Парсит все статьи со страницы"""
 
-        html = self._get_html_page(url)
+        html = self._get_html_page(page_num)
         soup = BeautifulSoup(html, 'lxml')
 
         div = soup.find('div', {'class': 'tm-articles-subpage'})
@@ -72,23 +74,30 @@ class Parser:
 
         return PostDataTuple(title=title, url=url, date=date)
 
-    def habr_parser_main(self, pages_count: int) -> list[PostDataTuple]:
-        """Основная функция программы"""
-
-        all_articles = []
-
-        for i in range(1, pages_count + 1):
-            url_with_page = f'{self.url_page}{str(i)}/'
-            articles = self._get_articles_from_page(url_with_page)
-            all_articles.extend(articles)
-
+    def _get_clean_articles_data(self, articles: list[BeautifulSoup]) -> list[PostDataTuple]:
+        """
+        Парсит информацию из всех статей
+        """
         res = []
         for article in articles:
             data = self._get_post_data(article)
             if data:
                 res.append(data)
 
-        return res[::-1]
+        return res
+
+    def habr_parser_main(self, pages_count: int=1) -> list[PostDataTuple]:
+        """Основная функция программы"""
+
+        articles = []
+
+        for page in range(1, pages_count + 1):
+            page_articles = self._get_articles_from_page(page)
+            articles.extend(page_articles)
+
+        clean_articles = self._get_clean_articles_data(articles)
+
+        return clean_articles[::-1]
 
 
 if __name__ == '__main__':

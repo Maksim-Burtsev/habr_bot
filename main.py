@@ -38,7 +38,7 @@ def start(message):
 
 @bot.message_handler(commands=['10'])
 def last_ten_posts(message):
-    posts = parser.habr_parser_main(1)
+    posts = parser.habr_parser_main()
     for post in posts[-10:]:
         send_hyperlink(bot, message, post.title, post.url)
 
@@ -46,7 +46,7 @@ def last_ten_posts(message):
 @bot.message_handler(content_types='text')
 def get_posts(message):
     if message.text == 'все публикации с главной страницы':
-        all_data = parser.habr_parser_main(1)
+        all_data = parser.habr_parser_main()
         for data in all_data:
             send_hyperlink(bot, message, data[0], data[1])
 
