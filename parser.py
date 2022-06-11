@@ -1,8 +1,15 @@
 import datetime
 import requests
+from typing import NamedTuple
 
-from bs4 import BeautifulSoup
 import fake_useragent
+from bs4 import BeautifulSoup
+
+
+class PostDataTuple(NamedTuple):
+    title: str
+    url: str
+    date: str
 
 
 class Parser:
@@ -10,6 +17,7 @@ class Parser:
     def __init__(self) -> None:
         self.url = 'https://habr.com/ru/all/'
         self.url_page = 'https://habr.com/ru/all/page'
+        self.user = fake_useragent.UserAgent().random
 
     def _get_current_date(self) -> str:
         """Возвращает текущую дату в Europe/Moscow"""
@@ -20,31 +28,36 @@ class Parser:
 
         return str(current_datetime)[:10]  # 2022-03-10
 
+    def _get_html_page(self, url: str) -> str:
+        """
+        Парсит html страницы
+        """
+        header = {'user-agent': self.user}
+        response = requests.get(url, headers=header)
+        if response.status_code == 200:
+            return response.text
+        raise Exception('Parse error')
+
     def _get_articles_from_page(self, url: str) -> list[BeautifulSoup]:
         """Парсит все статьи со страницы"""
 
-        user = fake_useragent.UserAgent().random
-        header = {
-            'user-agent': user,
-        }
-
-        response = requests.get(url, headers=header)
-        soup = BeautifulSoup(response.text, 'lxml')
+        html = self._get_html_page(url)
+        soup = BeautifulSoup(html, 'lxml')
 
         div = soup.find('div', {'class': 'tm-articles-subpage'})
-
         articles = div.find_all('article')
 
         return articles
 
-    def _get_post_data(self, article: BeautifulSoup) -> tuple:
-        """Достаёт из поста заголовок, ссылку и время публикации и возвращает их"""
-
+    def _get_post_data(self, article: BeautifulSoup) -> PostDataTuple:
+        """
+        Достаёт данные из html поста
+        """
         try:
             title = article.find(
                 'a', {'class': 'tm-article-snippet__title-link'}).text
         except:
-            return False
+            raise Exception('Проблемный пост')
 
         post_datetime = datetime.datetime.strptime(
             article.find('time').get('title'),
@@ -57,22 +70,25 @@ class Parser:
             article.find(
                 'a', {'class': 'tm-article-snippet__title-link'}).get('href')
 
-        return (title, url, date)
+        return PostDataTuple(title=title, url=url, date=date)
 
-    def habr_parser_main(self, pages_count: int) -> list:
+    def habr_parser_main(self, pages_count: int) -> list[PostDataTuple]:
         """Основная функция программы"""
 
-        all_data = []
+        all_articles = []
 
-        for i in range(1, pages_count+1):
-            url = self.url_page + str(i) + '/'
-            articles = self._get_articles_from_page(url)
-            for j in range(len(articles)):
-                data = self._get_post_data(articles[j])
-                if data:
-                    all_data.append(data)
+        for i in range(1, pages_count + 1):
+            url_with_page = f'{self.url_page}{str(i)}/'
+            articles = self._get_articles_from_page(url_with_page)
+            all_articles.extend(articles)
 
-        return all_data[::-1]
+        res = []
+        for article in articles:
+            data = self._get_post_data(article)
+            if data:
+                res.append(data)
+
+        return res[::-1]
 
 
 if __name__ == '__main__':

@@ -13,6 +13,7 @@ def send_hyperlink(bot: telebot.TeleBot, message: types.Message,
     """Отправляет гиперссылку"""
 
     text = f'<a href="{link}">{text}</a>'
+
     bot.send_message(chat_id=message.chat.id,
                      text=text,
                      parse_mode=ParseMode.HTML)
@@ -37,9 +38,9 @@ def start(message):
 
 @bot.message_handler(commands=['10'])
 def last_ten_posts(message):
-    all_data = parser.habr_parser_main(1)
-    for data in all_data[-10:]:
-        send_hyperlink(bot, message, data[0], data[1])
+    posts = parser.habr_parser_main(1)
+    for post in posts[-10:]:
+        send_hyperlink(bot, message, post.title, post.url)
 
 
 @bot.message_handler(content_types='text')
@@ -50,11 +51,11 @@ def get_posts(message):
             send_hyperlink(bot, message, data[0], data[1])
 
     if message.text == "все посты за сегодня":
-        all_data = parser.habr_parser_main(3)
+        posts = parser.habr_parser_main(3)
         current_date = parser._get_current_date()
-        for data in all_data:
-            if data[2] == current_date:
-                send_hyperlink(bot, message, data[0], data[1])
+        for post in posts:
+            if post.date == current_date:
+                send_hyperlink(bot, message, post.title, post.url)
 
 
 bot.infinity_polling()
