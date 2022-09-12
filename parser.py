@@ -1,4 +1,5 @@
 import datetime
+from enum import Enum
 from typing import NamedTuple
 
 import requests
@@ -6,101 +7,86 @@ import fake_useragent
 from bs4 import BeautifulSoup
 
 
-class PostDataTuple(NamedTuple):
+# TODO validation from pydantic maybe
+class PostData(NamedTuple):
     title: str
     url: str
     date: str
 
 
+# TODO maybe post init wich transfrom date
+
+
+class URL(Enum, str):
+    HABR_DEFAULT: str = "https://habr.com"
+    HABR_NEWS: str = "https://habr.com/ru/all/"
+
+
+def get_current_msk_date(self) -> str:
+    """Return current date in Europe/Moscow."""
+    delta = datetime.timedelta(hours=3, minutes=0)
+    current_datetime = datetime.datetime.now(datetime.timezone.utc) + delta
+
+    return str(current_datetime)[:10]  # 2022-03-10
+
+
 class Parser:
-
     def __init__(self) -> None:
-        self.url = 'https://habr.com/ru/all/'
-        self.url_page = 'https://habr.com/ru/all/page'
-        self.user = fake_useragent.UserAgent().random
+        self.headers = {"user-agent": fake_useragent.UserAgent().random}
 
-    def _get_current_date(self) -> str:
-        """Возвращает текущую дату в Europe/Moscow"""
-
-        delta = datetime.timedelta(hours=3, minutes=0)
-
-        current_datetime = datetime.datetime.now(datetime.timezone.utc) + delta
-
-        return str(current_datetime)[:10]  # 2022-03-10
-
-    def _get_html_page(self, page_num: int) -> str:
-        """
-        Парсит html страницы
-        """
-        url = f'{self.url_page}{str(page_num)}/'
-        header = {'user-agent': self.user}
-
-        response = requests.get(url, headers=header)
+    def get_articles(self, url: str) -> list[BeautifulSoup | None]:
+        response = requests.get(url, headers=self.headers)
         if response.status_code == 200:
-            return response.text
-        raise Exception('Parse error')
+            soup = BeautifulSoup(response.text, "lxml")
+            return self.parse_page_articles(soup)
+        # TODO custom exc
+        raise Exception("Parse error")
 
-    def _get_articles_from_page(self, page_num: int=1) -> list[BeautifulSoup]:
-        """Парсит все статьи со страницы"""
-
-        html = self._get_html_page(page_num)
-        soup = BeautifulSoup(html, 'lxml')
-
-        div = soup.find('div', {'class': 'tm-articles-subpage'})
-        articles = div.find_all('article')
+    def parse_page_articles(
+        self, html_page: BeautifulSoup
+    ) -> list[BeautifulSoup | None]:
+        """Parse all articles from html page."""
+        try:
+            div = html_page.find("div", {"class": "tm-articles-subpage"})
+            articles = div.find_all("article")
+        # AttributeError from exc
+        except Exception as exc:
+            pass
 
         return articles
 
-    def _get_post_data(self, article: BeautifulSoup) -> PostDataTuple:
-        """
-        Достаёт данные из html поста
-        """
+    def clean_post_data(self, article: BeautifulSoup) -> PostData:
+        """Parse post data."""
         try:
-            title = article.find(
-                'a', {'class': 'tm-article-snippet__title-link'}).text
+            title = article.find("a", {"class": "tm-article-snippet__title-link"}).text
+            # TODO get_post_datetime
+            post_datetime = datetime.datetime.strptime(
+                article.find("time").get("title"),
+                "%Y-%m-%d, %H:%M",
+            )
+            url = article.find("a", {"class": "tm-article-snippet__title-link"}).get(
+                "href"
+            )
+        # TODO except what?
         except:
-            raise Exception('Проблемный пост')
+            raise Exception("")
+        else:
+            date = str(post_datetime)[:10]  # 2022-03-10
+        # TODO never return empty named tuple, that's mean add validation, pydanctic maybe
+        return PostData(title=title, url=URL.HABR_DEFAULT.value + url, date=date)
 
-        post_datetime = datetime.datetime.strptime(
-            article.find('time').get('title'),
-            '%Y-%m-%d, %H:%M',
-        )
+    # TODO rename
+    def habr_parser_main(self, pages_count: int = 1) -> list[PostData]:
+        raw_articles = []
+        for page_num in range(1, pages_count + 1):
+            url = f"{URL.HABR_NEWS.value}/page{str(page_num)}/"
+            raw_articles.extend(self.get_articles(url))
 
-        date = str(post_datetime)[:10]  # 2022-03-10
-
-        url = 'https://habr.com' + \
-            article.find(
-                'a', {'class': 'tm-article-snippet__title-link'}).get('href')
-
-        return PostDataTuple(title=title, url=url, date=date)
-
-    def _get_clean_articles_data(self, articles: list[BeautifulSoup]) -> list[PostDataTuple]:
-        """
-        Парсит информацию из всех статей
-        """
-        res = []
-        for article in articles:
-            data = self._get_post_data(article)
-            if data:
-                res.append(data)
-
-        return res
-
-    def habr_parser_main(self, pages_count: int=1) -> list[PostDataTuple]:
-        """Основная функция программы"""
-
-        articles = []
-
-        for page in range(1, pages_count + 1):
-            page_articles = self._get_articles_from_page(page)
-            articles.extend(page_articles)
-
-        clean_articles = self._get_clean_articles_data(articles)
-
-        return clean_articles[::-1]
+        articles_data = list(map(self.clean_post_data, raw_articles))
+        return articles_data[::-1]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = Parser()
 
     print(parser.habr_parser_main(1))
